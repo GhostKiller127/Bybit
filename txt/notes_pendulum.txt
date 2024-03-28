@@ -1,0 +1,25 @@
+todo:
+learner
+    saving & loading: model & optimizer state
+    checkpointing
+crypto data
+    what data to use? there seems to be a difference between spot and futures volume, even between binance and bybit
+    should I include all data for pretraining, from spot to futures, from delisted coins over to different exchanges? and then finetune on the data, coins and exchange I will actually use? this would make the most sense
+    should I also use a non broker source? but do they have volume? maybe they have other important data
+crypto performance
+    causality check: evaluate and compare last timestep (labels are otherwise included in input)
+    prediction & deviation vs. mean & std (direct vs gauss)
+crypto validation
+    predicting next kline is fast and gives a hint of performance (same as pendulum)
+    is there a max length for performance?
+    since calculating trend, autoregressively predict price movement
+whats next
+    first decide and download the data I actually want to trade on
+    develop useful evaluation (do I need test data?)
+    first train and evaluate on that data
+    see if adding more data improves performance
+    see if training on non trading data improves performance
+    see if fine tuning on trading data improves performance
+
+findings:
+validation sequence length shouldnt exceed training sequence length. if unavoidable, use prepadding to train on the same length. through prepadding the model gets conditioned to propagate through the whole length. dont know why that would help, since just zeros, but loss is somehow better. i think only needed if i use the whole history length, otherwise no padding and same val length.
