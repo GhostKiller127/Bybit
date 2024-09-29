@@ -1,0 +1,126 @@
+adding more data
+	multiple coins
+		trade one vs multiple coins
+	different coin types (normal, meme, etc)
+	other than ohlcv data?
+data
+    add test split (train, val, test)
+    should I include all data for pretraining, from spot to futures, from delisted coins, non usdt pairs, web3 over to different exchanges? and then finetune on the data, coins and exchange I will actually use? this would make the most sense
+    should I also use a non broker source? but do they have volume? maybe they have other important data
+evaluation
+    1. prediction script
+        actor(return_values=True)
+    2. evaluation script
+        trade with multiple coins
+    performance to history length
+    performance to future distance
+    eval non trained coin
+        never include
+        include in training
+        finetune on coin
+        train and finetune
+    trade for one week, gather all data, and check with offline data & performance (binance data vs bybit trading) (retrieve past trading data)    
+
+
+evaluator
+
+dict = {}
+- key: symbol
+- value: timestamp, action values, reward, history (daata collector style)
+
+- i can calculate balance per symbol (is actually output of crypto_env)
+- i can analyse reward bases on action values
+- i can come up with a multi coin trade strategy
+
+actor:
+- get dictionary of symbols with current action = 0
+- coins for multi trade are available as soon as action != 0
+
+
+actor
+    downloaded kline data
+        try to use crypto_env functions
+        offline trading
+        reward history calculation
+    function for choosing actions
+        update history for chosen symbols
+        use timestamps for robustness
+    store trading performance
+        check with training performance
+        check with live performance
+trader
+    set to isolated, not cross
+    store trading performance
+        compare to offline performance
+    how to do automatic periodic execution?
+    main
+        try initializing a few times
+        before close all, retry, or reinitialize from beginning
+        check for internet connection
+            this would mean never halt entire program
+    hierarchy: electricity (pc, program) -> internet (email) -> exchange public (market) -> exchange private (orders)
+    when really want to stop: 
+        closing all positions and sending email are asynchronous. (seperate servers)
+        retry them until they work
+
+
+crypto_env
+    [terminate at 90% loss, and clip reward there]
+    [check load_data for correct loading]
+    [check env states for loading]
+    [add history reward scaling]
+    vectorize load_klines (commit before that)
+    sequential input data version
+    linear reward version
+        abolute train rewards
+        linear reward history
+        reset balance for each action?
+bandits
+    [added indeces saving and loading]
+main / training
+    [add graceful shutdown]
+    [check saving & loading]
+    [orbax saving error]
+    [jax complex warning]
+metrics
+    [use square root]
+    [added metric state]
+    [added cumulative reward]
+    [split cumulative reward for greedy and stochastic policy]
+    maybe move cumulative reward calculation elsewhere
+learner & co
+    [added batchnorm]
+
+
+runs
+    lunarlander
+        scaling: 1., 2., 2.
+        5 bootstrap (should be slower, but lower variance?)
+        5 sequence length, 5 bootstrap, 0.6 priority exponent, 1 sample reuse, 100.000 per min frames, (128 batch size)
+    crypto
+        24 hours in future
+        linear reward
+        200 klines, no months, fee 0.002
+        test run with future data
+            each interval
+            only plus trading interval
+
+
+
+Bybit
+
+finally committing:
+- added downloader
+- added processor
+- added plotter
+- added crypto_env
+
+first iteration:
+- added actor
+- added trader
+
+
+Reinforcement Learning
+
+changes:
+- 

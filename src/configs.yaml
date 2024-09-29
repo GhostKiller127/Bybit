@@ -1,0 +1,21 @@
+intervals:
+- 1 month
+- 1 week
+- 1 day
+- 6 hours
+- 1 hour
+train_symbols:
+val_symbols:
+exclude_symbols:
+- USDCUSDT
+min_history_length: 1209600000      # 14 days
+train_data_end: 1709247600000       # 2024-03-01
+val_data_end: 1725141600000         # 2024-09-01
+last_launch_time: 1693460834000     # 2023-08-31 12:27:14
+sequence_length: 27
+train_episode_length: [720, 744]   # 30-31 days
+val_episode_length: [720, 744]     # 30-31 days
+initial_balance: 1
+fee: 0.005
+position_step_size: 1
+include_history: true
