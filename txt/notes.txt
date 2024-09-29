@@ -109,18 +109,6 @@ runs
 
 Bybit
 
-finally committing:
-- added downloader
-- added processor
-- added plotter
-- added crypto_env
-
 first iteration:
 - added actor
 - added trader
-
-
-Reinforcement Learning
-
-changes:
-- 
