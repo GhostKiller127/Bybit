@@ -1,4 +1,5 @@
 import os
+import json
 import random
 import numpy as np
 import pandas as pd
@@ -113,6 +114,98 @@ class Plotter:
         plt.tight_layout()
         plt.show()
 
+#endregion
+#region plot_raw_klines
+
+    def plot_raw_klines(self, interval):
+        klines_path = os.path.join("../data/klines", interval)
+        plots_path = os.path.join("../data/plots/raw_klines", interval)
+        os.makedirs(plots_path, exist_ok=True)
+
+        all_symbols = [f[:-4] for f in os.listdir(klines_path) if f.endswith('.csv')]
+
+        # Load all data at once
+        all_data = {}
+        for symbol in tqdm(all_symbols, desc="Loading data"):
+            try:
+                filepath = os.path.join(klines_path, f"{symbol}.csv")
+                df = pd.read_csv(filepath, parse_dates=['date'])
+                all_data[symbol] = df
+            except Exception as e:
+                print(f"Error processing {symbol}: {str(e)}")
+
+        # Plot data
+        for symbol in tqdm(all_data.keys(), desc="Plotting data"):
+            df = all_data[symbol]
+            
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
+            fig.suptitle(f'{symbol} Raw Klines ({interval})', fontsize=16)
+
+            # Close Price
+            ax1.plot(df['date'], df['close'], color='#00FFFF')  # Cyan
+            ax1.set_title('Close Price')
+            ax1.set_xlabel('Date')
+            ax1.set_ylabel('Close Price')
+            ax1.grid(True, color='#555555')
+
+            # Turnover
+            ax2.plot(df['date'], df['turnover'], color='#FF1493')  # Deep Pink
+            ax2.set_title('Turnover')
+            ax2.set_xlabel('Date')
+            ax2.set_ylabel('Turnover')
+            ax2.grid(True, color='#555555')
+
+            # Rotate and align the tick labels
+            fig.autofmt_xdate()
+
+            plt.tight_layout()
+
+            # Save the figure
+            output_file = os.path.join(plots_path, f'{symbol}_raw_klines.png')
+            plt.savefig(output_file, bbox_inches='tight', dpi=300)
+            plt.close(fig)
+
+        print(f"Raw klines plots for {interval} saved in '{plots_path}'")
+
+#endregion
+#region check_raw_klines
+
+    def check_raw_klines(self, interval):
+        klines_path = os.path.join("../data/klines", interval)
+        issues_path = "../data/plots/raw_klines"
+        os.makedirs(issues_path, exist_ok=True)
+
+        all_symbols = [f[:-4] for f in os.listdir(klines_path) if f.endswith('.csv')]
+
+        issues = {}
+        for symbol in tqdm(all_symbols, desc="Checking klines"):
+            try:
+                filepath = os.path.join(klines_path, f"{symbol}.csv")
+                df = pd.read_csv(filepath, parse_dates=['date'])
+                price_changes = df['close'].pct_change()
+
+                # Find indices where price changes are <= -0.5 or >= 0.5
+                issue_indices = np.where((price_changes <= -0.5) | (price_changes >= 0.5))[0]
+                
+                if len(issue_indices) > 0:
+                    issues[symbol] = []
+                    for idx in issue_indices:
+                        issues[symbol].append({
+                            'timestamp': df['date'].iloc[idx].isoformat(),
+                            'price_change': f"{price_changes.iloc[idx]:.2%}",
+                            'prev_close': df['close'].iloc[idx-1],
+                            'curr_close': df['close'].iloc[idx]
+                        })
+
+            except Exception as e:
+                print(f"Error processing {symbol}: {str(e)}")
+
+        output_file = os.path.join(issues_path, f'kline_issues_{interval.replace(" ", "_")}.json')
+        with open(output_file, 'w') as f:
+            json.dump(issues, f, indent=2)
+
+        print(f"Kline issues for {interval} saved in '{output_file}'")
+    
 #endregion
 #region plot_efficient
 

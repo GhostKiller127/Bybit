@@ -4,18 +4,29 @@ intervals:
 - 1 day
 - 6 hours
 - 1 hour
+- 15 minutes
 train_symbols:
 val_symbols:
-exclude_symbols:
+exclude_train:
+exclude_val:
+exclude_both:
 - USDCUSDT
-min_history_length: 1209600000      # 14 days
-train_data_end: 1709247600000       # 2024-03-01
-val_data_end: 1725141600000         # 2024-09-01
-last_launch_time: 1693460834000     # 2023-08-31 12:27:14
+- AKROUSDT
+- CTCUSDT
+- UNFIUSDT
+- XCNUSDT
+min_history_length: 15552000000         # 6 months (6 * 30 * 24 * 60 * 60 * 1000)
+earliest_launch_time: 1609459200000     # 2021-01-01 00:00:00
+last_launch_time: 1680307200000         # 2023-04-01 00:00:00
+train_data_end: 1711929600000           # 2024-04-01 00:00:00
+val_data_end: 1727740800000             # 2024-10-01 00:00:00
 sequence_length: 27
-train_episode_length: [720, 744]   # 30-31 days
-val_episode_length: [720, 744]     # 30-31 days
+train_episode_length: [720, 744]      # 30-31 days (1h), 7.5-7.75 days (15min)
+train_val_episode_length: [720, 744]  # 30-31 days (1h), 7.5-7.75 days (15min)
+val_episode_length: [720, 744]        # 30-31 days (1h), 7.5-7.75 days (15min)
+eval_episode_length: [1e6, 1e6]         # all val data
 initial_balance: 1
 fee: 0.005
 position_step_size: 1
 include_history: true
+data_version: sequential

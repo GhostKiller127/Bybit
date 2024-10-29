@@ -12,6 +12,7 @@ class CryptoEnv:
         self.train_configs = train_configs
         self.train_log_dir = train_log_dir
         self.configs = self.get_configs()
+        self.train_symbols, self.val_symbols = self.get_symbols()
         self.data = self.load_data()
         self.validate_action_dim()
         self.rng = np.random.default_rng(self.train_configs['jax_seed'] if self.train_configs else 0)
@@ -52,27 +53,49 @@ class CryptoEnv:
                 raise ValueError(f"Mismatch in action dimensions. Calculated: {calculated_action_dim}, Provided: {action_dim}")
             self.action_dim = action_dim
 
+
+    def get_symbols(self):
+        data_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "env_data"))
+        shortest_interval = self.configs['intervals'][-1]
+        interval_dir = os.path.join(data_directory, shortest_interval)
+        available_symbols = [f.split('.')[0] for f in os.listdir(interval_dir) if f.endswith('.npz')]
+        filtered_symbols = []
+
+        for symbol in available_symbols:
+            file_path = os.path.join(interval_dir, f"{symbol}.npz")
+            with np.load(file_path) as npz_data:
+                first_timestamp = npz_data['timestamps'][0]
+                if self.configs['earliest_launch_time'] <= first_timestamp <= self.configs['last_launch_time']:
+                    filtered_symbols.append(symbol)
+
+        train_symbols = filtered_symbols.copy()
+        val_symbols = filtered_symbols.copy()
+
+        if self.configs.get('train_symbols'):
+            train_symbols = [s for s in self.configs['train_symbols'] if s in filtered_symbols]
+        if self.configs.get('val_symbols'):
+            val_symbols = [s for s in self.configs['val_symbols'] if s in filtered_symbols]
+
+        if self.configs.get('exclude_train'):
+            train_symbols = [s for s in train_symbols if s not in self.configs['exclude_train']]
+        if self.configs.get('exclude_val'):
+            val_symbols = [s for s in val_symbols if s not in self.configs['exclude_val']]
+        if self.configs.get('exclude_both'):
+            train_symbols = [s for s in train_symbols if s not in self.configs['exclude_both']]
+            val_symbols = [s for s in val_symbols if s not in self.configs['exclude_both']]
+        
+        return train_symbols, val_symbols
+
 #endregion
 #region loading
 
     def load_data(self):
         data = {}
         data_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "env_data"))
+        selected_symbols = list(set(self.train_symbols + self.val_symbols))
+
         for interval in self.configs['intervals']:
             interval_dir = os.path.join(data_directory, interval)
-            available_symbols = [f.split('.')[0] for f in os.listdir(interval_dir) if f.endswith('.npz')]
-            
-            if self.configs['train_symbols'] and self.configs['val_symbols']:
-                train_symbols = [s for s in self.configs['train_symbols'] if s in available_symbols]
-                val_symbols = [s for s in self.configs['val_symbols'] if s in available_symbols]
-                selected_symbols = list(set(train_symbols + val_symbols))
-                self.train_symbols = train_symbols
-                self.val_symbols = val_symbols
-            elif self.configs['exclude_symbols']:
-                selected_symbols = [s for s in available_symbols if s not in self.configs['exclude_symbols']]
-                self.train_symbols = selected_symbols
-                self.val_symbols = selected_symbols
-            
             data[interval] = {}
             for symbol in selected_symbols:
                 file_path = os.path.join(interval_dir, f"{symbol}.npz")
@@ -82,18 +105,19 @@ class CryptoEnv:
                         'close': npz_data['close'],
                         'volume': npz_data['volume'],
                         'timestamps': npz_data['timestamps']}
+        
         return data
 
 
-    def load_klines(self, symbol, timestamp, index=None):
+    def load_klines(self, symbol, timestamp):
         klines = []
         for interval in self.configs['intervals']:
             interval_data = self.data[interval][symbol]
-
-            if index is None:
-                end_index = max(0, np.searchsorted(interval_data['timestamps'], timestamp + 1000) - 0)  # -1 to not include future klines
+            
+            if interval in self.configs['intervals'][:]:
+                end_index = max(0, np.searchsorted(interval_data['timestamps'], timestamp + 1000) - 1)
             else:
-                end_index = index
+                end_index = max(0, np.searchsorted(interval_data['timestamps'], timestamp + 1000) - 0)  # includes next future kline
             start_index = max(0, end_index - self.configs['sequence_length'])
 
             interval_klines = interval_data['klines_processed'][start_index:end_index]
@@ -104,7 +128,10 @@ class CryptoEnv:
 
             klines.append(interval_klines)
 
-        result_klines = np.hstack(klines)
+        if self.configs['data_version'] == 'parallel':
+            result_klines = np.hstack(klines)
+        elif self.configs['data_version'] == 'sequential':
+            result_klines = np.vstack(klines)
         return result_klines
 
 #endregion
@@ -114,7 +141,11 @@ class CryptoEnv:
         self.env_states = []
         if self.mode == 'train':
             if self.train_configs['load_run'] is None:
-                env_types = ['train'] * self.train_configs['train_envs'] + ['val'] * self.train_configs['val_envs']
+                env_types = ['train'] * self.train_configs['train_envs']
+                env_types += ['train_val'] * (self.train_configs['train_val_envs'] // 2)
+                env_types += ['val'] * (self.train_configs['val_envs'] // 4)
+                env_types += ['train_val'] * (self.train_configs['train_val_envs'] // 2)
+                env_types += ['val'] * (self.train_configs['val_envs'] // 4)
                 for env_type in env_types:
                     self.env_states.append(EnvState(env_type=env_type))
             else:
@@ -146,7 +177,7 @@ class CryptoEnv:
                 state.episode_length = self.rng.integers(episode_length_range[0], episode_length_range[1] + 1)
 
             state.symbol = self.choose_symbol(state, env_index)
-            state.timestamp, state.index = self.choose_start_timestamp(state)
+            state.timestamp = self.choose_start_timestamp(state)
             state.step = 0
             state.remaining_balance = self.configs['initial_balance']
             state.reset_history(self.configs['sequence_length'])
@@ -180,18 +211,20 @@ class CryptoEnv:
         state = self.env_states[env_index]
         converted_action = self.convert_action(action)
         state.step += 1
-        state.index += 1
         state.timestamp += self.interval_timedelta
 
         train_reward, val_reward, terminated, truncated = self.execute_trade_and_update_state(state, converted_action)
         
         if state.env_type == 'train':
             reward = train_reward
-        elif state.env_type == 'val':
+        elif state.env_type == 'train_val' or state.env_type == 'val':
             reward = val_reward
         
         if self.configs['include_history']:
-            state.action_length += 1
+            if self.configs['data_version'] == 'parallel':
+                state.action_length += 1
+            elif self.configs['data_version'] == 'sequential':
+                state.action_length = 1
             state.cumulative_reward += train_reward
             scaled_reward = self.scale_cumulative_reward(state.cumulative_reward)
             state.history['action_history'] = self.update_history(state.history['action_history'], converted_action)
@@ -313,7 +346,7 @@ class CryptoEnv:
         if state.step >= state.episode_length:
             truncated = True
         
-        if state.env_type == 'train':
+        if state.env_type == 'train' or state.env_type == 'train_val':
             end_timestamp = self.configs['train_data_end']
         elif state.env_type == 'val':
             end_timestamp = self.configs['val_data_end']
@@ -327,7 +360,7 @@ class CryptoEnv:
             elif state.action > 0:
                 _, new_total_value = self.close_long_trade(state)
         
-        train_reward = np.log2(max(new_total_value / old_total_value, 0.1)) * 2
+        train_reward = np.log2(max(new_total_value / old_total_value, 0.1)) * 2 * 2
         val_reward = new_total_value - old_total_value
         
         return train_reward, val_reward, terminated, truncated
@@ -351,7 +384,7 @@ class CryptoEnv:
             weights = [data_end - self.data[shortest_interval][symbol]['timestamps'][0] for symbol in symbols]
             probabilities = np.array(weights) / np.sum(weights)
             return probabilities
-    
+
 
     def calculate_interval_timedelta(self):
         shortest_interval = self.configs['intervals'][-1]
@@ -361,7 +394,7 @@ class CryptoEnv:
 
 
     def choose_symbol(self, state, env_index):
-        if state.env_type == 'train':
+        if state.env_type == 'train' or state.env_type == 'train_val':
             return self.rng.choice(self.train_symbols, p=self.symbol_probabilities)
         elif state.env_type == 'val' and self.mode == 'train':
             return self.rng.choice(self.val_symbols)
@@ -374,7 +407,7 @@ class CryptoEnv:
         timestamps = self.data[shortest_interval][state.symbol]['timestamps']
         
         if self.mode == 'train':
-            if state.env_type == 'train':
+            if state.env_type == 'train' or state.env_type == 'train_val':
                 start = timestamps[0] + self.configs['min_history_length']
                 end = self.configs['train_data_end']
             elif state.env_type == 'val':
@@ -384,22 +417,29 @@ class CryptoEnv:
             start_index = np.searchsorted(timestamps, start)
             end_index = np.searchsorted(timestamps, end) - state.episode_length
             chosen_index = self.rng.integers(start_index, end_index)
-            return timestamps[chosen_index], chosen_index
+            return timestamps[chosen_index]
         
         elif self.mode == 'eval':
             start = self.configs['train_data_end']
             start_index = np.searchsorted(timestamps, start)
-            return timestamps[start_index], start_index
+            return timestamps[start_index]
 
 
     def create_observation(self, klines, history):
         if not self.configs['include_history']:
             return klines
         else:
-            observation = [klines]
-            for value in history.values():
-                observation.append(value)
-            return np.hstack(observation)
+            if self.configs['data_version'] == 'parallel':
+                observation = [klines]
+                for value in history.values():
+                    observation.append(value)
+                return np.hstack(observation)
+            elif self.configs['data_version'] == 'sequential':
+                observation = [klines]
+                for value in history.values():
+                    value = np.full(5, value[-1])
+                    observation.append(value)
+                return np.vstack(observation)
 
 
     def convert_action(self, action):
@@ -439,7 +479,6 @@ class EnvState:
             symbol=None,
             timestamp=None,
             episode_length=None,
-            index=None,
             step=None,
             action=None,
             action_history=None,
@@ -452,7 +491,6 @@ class EnvState:
         self.symbol = symbol
         self.timestamp = timestamp
         self.episode_length = episode_length
-        self.index = index
         self.step = step
         self.action = action
         self.remaining_balance = remaining_balance

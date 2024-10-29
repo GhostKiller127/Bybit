@@ -8,12 +8,14 @@ from downloader import Downloader
 async def main():
     with open('configs.yaml', 'r') as file:
         configs = yaml.safe_load(file)
-    last_launch_time = configs['last_launch_time']
-    exclude_symbols = configs['exclude_symbols']
-    intervals = configs['intervals']
-    start_from_symbol = None
-    # intervals = ['1 hour']
-    # start_from_symbol = 'EGLDUSDT'
+    # last_launch_time = configs['last_launch_time']
+    last_launch_time = 1696118400000  # 2023-10-01 00:00:00
+    # exclude_symbols = configs['exclude_symbols']
+    exclude_symbols = ['USDCUSDT']
+    # intervals = configs['intervals']
+    intervals = ['5 minutes']
+    # start_from_symbol = None
+    start_from_symbol = 'LUNA2USDT'
 
     downloader = Downloader()
     await downloader.download_trading_symbols()

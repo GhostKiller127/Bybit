@@ -23,16 +23,24 @@ evaluation
 
 
 evaluator
+    dict = {}
+    - key: symbol
+    - value: timestamp, action values, reward, history (daata collector style)
 
-dict = {}
-- key: symbol
-- value: timestamp, action values, reward, history (daata collector style)
+    - i can calculate balance per symbol (is actually output of crypto_env)
+    - i can analyse reward based on action values
+    - i can come up with a multi coin trade strategy
 
-- i can calculate balance per symbol (is actually output of crypto_env)
-- i can analyse reward bases on action values
-- i can come up with a multi coin trade strategy
+    log action length
+        long
+        short
+    log action frequency
+        end of episode
+        percentage of holding of entire episode
+        long
+        short
 
-actor:
+actor
 - get dictionary of symbols with current action = 0
 - coins for multi trade are available as soon as action != 0
 
@@ -65,18 +73,17 @@ trader
 
 
 crypto_env
-    [terminate at 90% loss, and clip reward there]
-    [check load_data for correct loading]
-    [check env states for loading]
-    [add history reward scaling]
-    vectorize load_klines (commit before that)
-    sequential input data version
-    linear reward version
-        abolute train rewards
-        linear reward history
-        reset balance for each action?
+    [sequential input data version]
+    [greedy/stochastic train performance/cumulative reward history (metric)]
+    maybe linear reward version
+        reward_version: linear/log
+crypto_env_jax
+    optimize load_klines
+        use start end indeces
 bandits
     [added indeces saving and loading]
+data_collector
+    [implement importance sampling]
 main / training
     [add graceful shutdown]
     [check saving & loading]
@@ -90,25 +97,29 @@ metrics
     maybe move cumulative reward calculation elsewhere
 learner & co
     [added batchnorm]
+    [implement importance sampling]
+s5
+    add s5 rl implementation
 
 
 runs
     lunarlander
-        scaling: 1., 2., 2.
-        5 bootstrap (should be slower, but lower variance?)
-        5 sequence length, 5 bootstrap, 0.6 priority exponent, 1 sample reuse, 100.000 per min frames, (128 batch size)
+        [baseline]
+        [scaling: 1., 2., 2.]
+        [reward scalings: 0.4, 0.6, 0.2]
+        [scaling: 1., 10., 10.]
+        [uniform sampling]
+        [importance sampling]
+        [initial priorities: max, mean]
     crypto
-        24 hours in future
-        linear reward
-        200 klines, no months, fee 0.002
-        test run with future data
-            each interval
-            only plus trading interval
-
-
-
-Bybit
-
-first iteration:
-- added actor
-- added trader
+        5e6 buffer size, 1e6 min frames, p:0.6, i:0.4 exponents, per init mean , 0.99 discount, r*2
+        0.98 discount, r*3
+        train val, same reward function
+            use initial balance as trading amount
+            linear reward based on trading amount
+        move cumulative reward to metric.add_infos
+        log action reward
+        add tickers
+        add binance data
+        add actor
+        add evaluator
