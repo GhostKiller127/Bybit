@@ -20,13 +20,14 @@ earliest_launch_time: 1609459200000     # 2021-01-01 00:00:00
 last_launch_time: 1680307200000         # 2023-04-01 00:00:00
 train_data_end: 1711929600000           # 2024-04-01 00:00:00
 val_data_end: 1727740800000             # 2024-10-01 00:00:00
-sequence_length: 27
-train_episode_length: [720, 744]      # 30-31 days (1h), 7.5-7.75 days (15min)
-train_val_episode_length: [720, 744]  # 30-31 days (1h), 7.5-7.75 days (15min)
-val_episode_length: [720, 744]        # 30-31 days (1h), 7.5-7.75 days (15min)
+sequence_length: 100
+train_episode_length: [2784, 2976]        # 30-31 days (1h, [720, 744]), 29-31 days (15min, [2784, 2976]), 6.5-7.5 days (5min, [1872, 2160])
+train_val_episode_length: [2784, 2976]    # 30-31 days (1h, [720, 744]), 29-31 days (15min, [2784, 2976]), 6.5-7.5 days (5min, [1872, 2160])
+val_episode_length: [2784, 2976]          # 30-31 days (1h, [720, 744]), 29-31 days (15min, [2784, 2976]), 6.5-7.5 days (5min, [1872, 2160])
 eval_episode_length: [1e6, 1e6]         # all val data
 initial_balance: 1
-fee: 0.005
-position_step_size: 1
+fee: 0.00055
+position_step_size: 1                   # if constant_investment: 1 (currently)
 include_history: true
-data_version: sequential
+data_version: parallel
+constant_investment: true

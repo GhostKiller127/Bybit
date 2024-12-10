@@ -4,7 +4,7 @@ adding more data
 	different coin types (normal, meme, etc)
 	other than ohlcv data?
 data
-    add test split (train, val, test)
+    add tickers
     should I include all data for pretraining, from spot to futures, from delisted coins, non usdt pairs, web3 over to different exchanges? and then finetune on the data, coins and exchange I will actually use? this would make the most sense
     should I also use a non broker source? but do they have volume? maybe they have other important data
 evaluation
@@ -31,14 +31,6 @@ evaluator
     - i can analyse reward based on action values
     - i can come up with a multi coin trade strategy
 
-    log action length
-        long
-        short
-    log action frequency
-        end of episode
-        percentage of holding of entire episode
-        long
-        short
 
 actor
 - get dictionary of symbols with current action = 0
@@ -73,53 +65,64 @@ trader
 
 
 crypto_env
-    [sequential input data version]
-    [greedy/stochastic train performance/cumulative reward history (metric)]
-    maybe linear reward version
-        reward_version: linear/log
-crypto_env_jax
-    optimize load_klines
-        use start end indeces
-bandits
-    [added indeces saving and loading]
+    [train val, same reward function]
+    [use initial balance as trading amount]
+    [linear reward based on trading amount]
 data_collector
+    [implement importance sampling]
+    [corrected rng]
+learner & co
+    [added batchnorm]
     [implement importance sampling]
 main / training
     [add graceful shutdown]
     [check saving & loading]
     [orbax saving error]
     [jax complex warning]
+bandits
+    [added indeces saving and loading]
+    [corrected rng]
 metrics
-    [use square root]
+    [use counter square root]
     [added metric state]
     [added cumulative reward]
     [split cumulative reward for greedy and stochastic policy]
-    maybe move cumulative reward calculation elsewhere
-learner & co
-    [added batchnorm]
-    [implement importance sampling]
-s5
+    [add metric.add_infos]
+    [log action lengths]
+    [log action frequency]
+    [log action rewards]
+s5_rl
     add s5 rl implementation
+huggingface
+    how to finetune an llm?
+    maybe ssm model
+    a size that fits on my gpu
+
+
+possible optimizations
+    correct per init
+        return q from actor
+    retrace targets
+    trade action reward function
 
 
 runs
     lunarlander
-        [baseline]
-        [scaling: 1., 2., 2.]
-        [reward scalings: 0.4, 0.6, 0.2]
-        [scaling: 1., 10., 10.]
-        [uniform sampling]
-        [importance sampling]
-        [initial priorities: max, mean]
     crypto
-        5e6 buffer size, 1e6 min frames, p:0.6, i:0.4 exponents, per init mean , 0.99 discount, r*2
-        0.98 discount, r*3
-        train val, same reward function
-            use initial balance as trading amount
-            linear reward based on trading amount
-        move cumulative reward to metric.add_infos
-        log action reward
-        add tickers
-        add binance data
-        add actor
-        add evaluator
+        if load_run, weight reset at beginning
+        if load_model, new wandb run with loaded/resettet weights
+        add tickers to create_observation
+            maybe tickers.py
+            what makes a ticker valuable?
+        add more data
+    metrics
+        long, short
+
+
+Bybit
+commit message
+
+changes:
+- more efficient environment
+- added constant investment option
+- added linear rewards

@@ -38,7 +38,7 @@ class Trader:
         try:
             print("Initializing exchange connection...")
             time_difference = await self.get_time_difference()
-            self.create_exchange(time_difference)
+            self.create_exchange(max(time_difference, 0))
             await self.exchange.load_markets()
             self.markets = self.exchange.markets
         except Exception as e:
@@ -60,7 +60,7 @@ class Trader:
             }
         })
         self.exchange.verbose = False
-        # self.exchange.timeout = 30000
+        # self.exchange.timeout = 10000
 
 
     async def get_time_difference(self):
